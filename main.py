@@ -35,9 +35,12 @@ async def main():
         await consumer.start()
         await publisher.initialize()
         
-        await publisher.uploadPost(group_id, "test post with kafka")
-        await publisher.deletePost(group_id, post_id=1)
-        await publisher.editPost(group_id, post_id=4, message="edited")
+        #await publisher.uploadPost(group_id, "post ")
+        #await publisher.deletePost(group_id, post_id=42)
+        #await publisher.editPost(group_id, post_id=4, message="edited")
+        #await publisher.restorePost(group_id, post_id=42)
+        await publisher.getPosts(group_id=group_id, count=1)
+        
         await consumer.consume(handle_message)    
         
     finally:
