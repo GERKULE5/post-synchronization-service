@@ -7,6 +7,8 @@ from services.kafka_consumer import KafkaConsumer
 
 from services.vk.publish import Publisher
 
+from services.handlers.message_handler import MessageHandler
+
 
 load_dotenv()
 
@@ -29,7 +31,9 @@ async def main():
         token=getenv('ACCESS_TOKEN'),
         producer=producer)
     
-    try:
+    handler = MessageHandler(publisher)
+    
+    try:    
       
         await producer.start()
         await consumer.start()
@@ -39,9 +43,10 @@ async def main():
         #await publisher.deletePost(group_id, post_id=42)
         #await publisher.editPost(group_id, post_id=4, message="edited")
         #await publisher.restorePost(group_id, post_id=42)
-        await publisher.getPosts(group_id=group_id, count=1)
+        #await publisher.getPosts(group_id=group_id, count=1)
         
-        await consumer.consume(handle_message)    
+        await consumer.consume(handler.handle)
+
         
     finally:
      

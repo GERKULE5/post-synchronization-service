@@ -2,7 +2,7 @@ from aiokafka import AIOKafkaConsumer
 from typing import Optional, Callable, Awaitable
 import json
 from .kafka_base import KafkaBase
-
+from .vk.publish import Publisher
 class KafkaConsumer(KafkaBase):
     def __init__(self, url: str, topic: str, group_id: str = None):
         super().__init__(url)
@@ -10,6 +10,7 @@ class KafkaConsumer(KafkaBase):
         self.group_id = group_id or f"consumer-{topic}"
         self.consumer: Optional[AIOKafkaConsumer] = None
         self.running = False
+        
     
     async def start(self):
         self.consumer = AIOKafkaConsumer(
@@ -30,7 +31,7 @@ class KafkaConsumer(KafkaBase):
             async for msg in self.consumer:
                 if not self.running:
                     break
-                print(f"Received: {msg.value}")
+
                 await callback(msg.value)
         except Exception as e:
             print(f"Consume error: {e}")
