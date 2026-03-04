@@ -23,11 +23,13 @@ class MessageHandler:
                 if event_type == 'UPLOAD':
                     for group_id in vk_group_ids: 
                         post = await self.publisher.uploadPost(id, group_id, message)
+                        print(post)
                         if isPinned is True:
-                            await self.publisher.pinPost(group_id,post.post_id)
+                            await self.publisher.pinPost(group_id, post.get('post_id'))
                 
                 if event_type == 'EDIT':
-                    await self.publisher.editPost(group_id, post_id, message)
+                    for group_id in vk_group_ids:
+                        await self.publisher.editPost(id, group_id, post_id, message)
                 
                 if event_type == 'DELETE':
                     await self.publisher.deletePost(group_id, post_id)
