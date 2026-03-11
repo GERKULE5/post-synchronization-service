@@ -2,7 +2,7 @@ from typing import Dict
 from services.vk.publish import Publisher
 
 class MessageHandler:
-    def __init__(self, publisher: Publisher):
+    def __init__(self, publisher: Publisher, token: str):
         self.publisher = publisher
     
     async def handle(self, message: Dict):
@@ -39,5 +39,11 @@ class MessageHandler:
                 
                 if event_type == 'PIN':
                     await self.publisher.pinPost(group_id, post_id)
-                        
+
+                if event_type == 'SYNC':
+                    print('SYNC is handled')
+
+                if event_type == 'FETCH':
+                    # Calls method "groups.get"                    
+                    print('FETCH is handled')
         
