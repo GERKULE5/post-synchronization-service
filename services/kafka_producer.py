@@ -23,6 +23,5 @@ class KafkaProducer(KafkaBase):
             raise RuntimeError("Producer not started")
         
         result = await self.producer.send_and_wait(topic, message)
-        await self.producer.flush()
         print(f"Sent to {topic}: {message}")
         return result

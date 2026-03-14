@@ -29,7 +29,7 @@ async def main():
         token=getenv('ACCESS_TOKEN'),
         producer=producer)
     
-    handler = MessageHandler(publisher)
+    handler = MessageHandler(publisher, producer)
     
     try:    
       

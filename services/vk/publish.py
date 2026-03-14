@@ -32,8 +32,6 @@ class Publisher:
         print('try to upload post')
         try:
             post = self.vk.wall.post(owner_id=self.get_owner_id(group_id), message=message, from_group=1)
-            post_id = post['post_id']
-            await self.producer.send('posts.reply', {'id': id, 'status': 'uploaded', 'post_id': post_id})
             return post
             
         except Exception as e:
@@ -44,7 +42,7 @@ class Publisher:
         print('try to delete post')
         try:
             post = self.vk.wall.delete(owner_id=self.get_owner_id(group_id) , post_id=post_id)
-            await self.producer.send('posts.reply', {'id': id, 'status': 'deleted','post_id': post_id, 'code': post})
+            print('post uploaded')
             return post
         
         except Exception as e:
@@ -55,8 +53,7 @@ class Publisher:
         print('try to edit post')
         try: 
             post = self.vk.wall.edit(owner_id=self.get_owner_id(group_id), post_id=post_id, message=message)
-            post_id = post['post_id']
-            await self.producer.send('posts.reply', {'id': id, 'status': 'edited','post_id': post_id})
+            print('post edited')
             return post
         
         except Exception as e:
@@ -67,7 +64,7 @@ class Publisher:
         print(f'try to restore post {post_id}')
         try: 
             post = self.vk.wall.restore(owner_id=self.get_owner_id(group_id), post_id=post_id)
-            await self.producer.send('posts.reply', {'status': 'restore', 'code': post})
+            print('post restroed')
             return post
         
         except Exception as e:
@@ -78,6 +75,7 @@ class Publisher:
         print('try to pin post')
         try:
             post = self.vk.wall.pin(owner_id=self.get_owner_id(group_id), post_id=post_id)
+            print('post pinned')
             return post
         except Exception as e:
             print(e)
