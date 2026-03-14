@@ -1,5 +1,6 @@
 from vk_api import VkApi
 from vk_api.upload import VkUpload
+from typing import Optional
 
 
 
@@ -143,6 +144,26 @@ class Publisher:
         try:
             posts = self.vk.wall.get(domain=self.get_owner_id(group_id), count=count)
             print(posts)
+        except Exception as e:
+            print(e)
+            return None, e
+    
+    async def get_user(self):
+        print('try to get current user info')
+        try:
+            user = self.vk.users.get()
+            print(user)
+            await self.get_groups(user[0]['id'])
+            return user
+        except Exception as e:
+            print(e)
+            return None, e
+        
+    async def get_groups(self, user_id: int):
+        print(f'try to fetch channels of user_id={user_id}')
+        try:
+            groups = self.vk.groups.get(user_id=user_id, extended=1)
+            print(groups)
         except Exception as e:
             print(e)
             return None, e
