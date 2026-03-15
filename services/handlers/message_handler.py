@@ -1,65 +1,217 @@
 from typing import Dict
-from services.vk.publish import Publisher
+from services.publishers.factory import PublisherFactory
+
 
 class MessageHandler:
-    def __init__(self, publisher: Publisher, producer = None):
-        self.publisher = publisher
+    def __init__(self, producer=None):
         self.producer = producer
-    
-    async def handle(self, message: Dict):
+
+    async def handle(self, message: Dict, headers: Dict = {}):
         print(message)
         print('start handling')
-        platform_type = message.get("platform_type")
+
         event_type = message.get("event_type")
-        title = message.get("title")
-        content = message.get("content")
+
+        if not event_type:
+            print("No event_type in message, skipping")
+            return
+
+        handler = self._get_handler(event_type)
+
+        if handler is None:
+            print(f"Unknown event_type: {event_type}")
+            return
+
+        await handler(message, headers)
+
+    def _get_handler(self, event_type: str):
+        return {
+            'UPLOAD':  self._handle_upload,
+            'EDIT':    self._handle_edit,
+            'DELETE':  self._handle_delete,
+            'RESTORE': self._handle_restore,
+            'PIN':     self._handle_pin,
+            'SYNC':    self._handle_sync,
+            'FETCH':   self._handle_fetch,
+        }.get(event_type)
+
+    def _requires_vk(self, message: Dict) -> tuple[bool, list]:
+        platform     = message.get("platform_type", [])
+        vk_group_ids = message.get("vk_group_ids", [])
+
+        if 'vk' not in platform:
+            print(f"Platform 'vk' not in platform_type: {platform}")
+            return False, []
+
+        if not vk_group_ids:
+            print("No vk_group_ids provided")
+            return False, []
+
+        return True, vk_group_ids
+
+    async def _get_publisher(self, message: Dict):
+        platform = message.get("platform_type", [])
+        token    = message.get("token")
+
+        vk_platform = next((p for p in platform if p == 'vk'), None)
+        if not vk_platform or not token:
+            print("Missing platform or token")
+            return None
+
+        publisher = PublisherFactory.create('vk', token)
+        await publisher.initialize()
+        return publisher
+
+    async def _handle_upload(self, message: Dict, headers: Dict):
+        ok, vk_group_ids = self._requires_vk(message)
+        if not ok:
+            return
+
+        publisher = await self._get_publisher(message)
+        if not publisher:
+            return
+
+        id = message.get('id')
+        executor_id = message.get('executorId')
+        isPinned = message.get("isPinned")
+        text = f"{message.get('title')}\n{message.get('content')}"
+
+        try:
+            for group_id in vk_group_ids:
+                post = await publisher.upload_post(group_id, text)
+                print(post)
+
+                if isPinned is True:
+                    await publisher.pin_post(group_id, post.get('post_id'))
+
+                await self.producer.send('posts.reply', {
+                    'executor_id': executor_id,
+                    'news_id':     id,
+                    'post_id':     post['post_id'],
+                    'status':      'uploaded',
+                })
+        finally:
+            await publisher.close()
+
+    async def _handle_edit(self, message: Dict, headers: Dict):
+        ok, vk_group_ids = self._requires_vk(message)
+        if not ok:
+            return
+
+        publisher = await self._get_publisher(message)
+        if not publisher:
+            return
+
         id = message.get('id')
         executor_id = message.get('executorId')
         post_id = message.get('vk_post_id')
-        vk_group_ids = message.get("vk_group_ids")
-        isPinned = message.get("isPinned")
-        text = f"{title}\n{content}"
+        text = f"{message.get('title')}\n{message.get('content')}"
 
-        if platform_type and event_type and vk_group_ids:
-            if 'vk' in platform_type:
-                if event_type == 'UPLOAD':
-                    for group_id in vk_group_ids: 
-                        post = await self.publisher.uploadPost(id, group_id, text)
-                        print(post)
-                        if isPinned is True:
-                            await self.publisher.pinPost(group_id, post.get('post_id'))
+        try:
+            for group_id in vk_group_ids:
+                post = await publisher.edit_post(group_id, post_id, text)
+                if post:
+                    await self.producer.send('posts.reply', {
+                        'executor_id': executor_id,
+                        'news_id':     id,
+                        'post_id':     post['post_id'],
+                        'status':      'edited',
+                    })
+        finally:
+            await publisher.close()
 
-                        await self.producer.send('posts.reply', {'executor_id': executor_id, 'news_id': id, 'post_id': post['post_id'], 'status': 'uploaded'})
-                
-                if event_type == 'EDIT':
-                    for group_id in vk_group_ids:
-                        post = await self.publisher.editPost(id, group_id, post_id, text)
-                        if post:
-                            await self.producer.send('posts.reply', {'executor_id': executor_id, 'news_id': id, 'post_id': post['post_id'], 'status': 'edited'})
+    async def _handle_delete(self, message: Dict, headers: Dict):
+        ok, vk_group_ids = self._requires_vk(message)
+        if not ok:
+            return
 
-                
-                if event_type == 'DELETE':
-                    for group_id in vk_group_ids:
-                        post = await self.publisher.deletePost(group_id, post_id)
-                        if post: 
-                            await self.producer.send('posts.reply', {'executor_id': executor_id, 'news_id': id, 'status': 'deleted'})
+        publisher = await self._get_publisher(message)
+        if not publisher:
+            return
 
-                if event_type == 'RESTORE': 
-                    for group_id in vk_group_ids:
-                        post = await self.publisher.restorePost(group_id, post_id)
-                        if post:
-                            await self.producer.send('posts.reply', {'executor_id': executor_id, 'news_id': id, 'status': 'restored'})
-                
-                if event_type == 'PIN':
-                    await self.publisher.pinPost(group_id, post_id)
+        id = message.get('id')
+        executor_id = message.get('executorId')
+        post_id = message.get('vk_post_id')
 
-                if event_type == 'SYNC':
-                    print('SYNC is handled')
+        try:
+            for group_id in vk_group_ids:
+                post = await publisher.delete_post(group_id, post_id)
+                if post:
+                    await self.producer.send('posts.reply', {
+                        'executor_id': executor_id,
+                        'news_id':     id,
+                        'status':      'deleted',
+                    })
+        finally:
+            await publisher.close()
 
-                if event_type == 'FETCH':
-                    # Calls metho users.get(ids = None)
-                    # Calls method groups.get(user_id) 
-                    user = await self.publisher.get_user()
-                    await self.get_groups(user[0]['id'])
-                    print('FETCH is handled')
-        
+    async def _handle_restore(self, message: Dict, headers: Dict):
+        ok, vk_group_ids = self._requires_vk(message)
+        if not ok:
+            return
+
+        publisher = await self._get_publisher(message)
+        if not publisher:
+            return
+
+        id = message.get('id')
+        executor_id = message.get('executorId')
+        post_id = message.get('vk_post_id')
+
+        try:
+            for group_id in vk_group_ids:
+                post = await publisher.restore_post(group_id, post_id)
+                if post:
+                    await self.producer.send('posts.reply', {
+                        'executor_id': executor_id,
+                        'news_id':     id,
+                        'status':      'restored',
+                    })
+        finally:
+            await publisher.close()
+
+    async def _handle_pin(self, message: Dict, headers: Dict):
+        ok, vk_group_ids = self._requires_vk(message)
+        if not ok:
+            return
+
+        publisher = await self._get_publisher(message)
+        if not publisher:
+            return
+
+        post_id = message.get('vk_post_id')
+
+        try:
+            for group_id in vk_group_ids:
+                await publisher.pin_post(group_id, post_id)
+        finally:
+            await publisher.close()
+
+    async def _handle_sync(self, message: Dict, headers: Dict):
+        print('SYNC is handled')
+
+    async def _handle_fetch(self, message: Dict, headers: Dict):
+        correlation_id = headers.get('kafka_correlationId')
+        reply_topic = headers.get('kafka_replyTopic', 'posts.reply')
+        platform = message.get("platform")
+        token = message.get("token")
+
+        if not platform or not token:
+            print("FETCH: missing platform or token")
+            return
+
+        publisher = PublisherFactory.create(platform, token)
+        await publisher.initialize()
+
+        try:
+            user = await publisher.get_user()
+            groups = await publisher.get_groups(user[0]['id'])
+
+            await self.producer.send(
+                reply_topic,
+                {'channels': groups.get('items', []) if groups else []},
+                headers={'kafka_correlationId': correlation_id},
+            )
+            print('FETCH is handled')
+        finally:
+            await publisher.close()

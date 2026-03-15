@@ -18,10 +18,13 @@ class KafkaProducer(KafkaBase):
         self._client = self.producer
         print('Producer started')
     
-    async def send(self, topic: str, message: Dict):
+    async def send(self, topic: str, message: Dict, headers: Dict = None):
         if not self.producer:
             raise RuntimeError("Producer not started")
         
-        result = await self.producer.send_and_wait(topic, message)
+        encoded_headers = None
+        if headers:
+            encoded_headers = [(k, v.encode('utf-8')) for k, v in headers.items()]
+        result = await self.producer.send_and_wait(topic, message, headers=encoded_headers)
         print(f"Sent to {topic}: {message}")
         return result

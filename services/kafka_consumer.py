@@ -2,7 +2,7 @@ from aiokafka import AIOKafkaConsumer
 from typing import Optional, Callable, Awaitable
 import json
 from .kafka_base import KafkaBase
-from .vk.publish import Publisher
+
 class KafkaConsumer(KafkaBase):
     def __init__(self, url: str, topic: str, group_id: str = None):
         super().__init__(url)
@@ -31,8 +31,8 @@ class KafkaConsumer(KafkaBase):
             async for msg in self.consumer:
                 if not self.running:
                     break
-
-                await callback(msg.value)
+                headers = {k: v.decode('utf-8') for k, v in msg.headers}
+                await callback(msg.value, headers)
         except Exception as e:
             print(f"Consume error: {e}")
     

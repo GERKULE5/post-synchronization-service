@@ -1,10 +1,8 @@
-from vk_api import VkApi
-from vk_api.upload import VkUpload
-from typing import Optional
+import aiovk
+from services.publishers.base import BasePublisher
 
 
-
-class Publisher:
+class VkPublisher(BasePublisher):
     def __init__(self, token: str, producer=None):
         self.token = token
         self.producer = producer
@@ -14,11 +12,10 @@ class Publisher:
     
     async def initialize(self) -> bool:
         try:
-            self.vk_session = VkApi(token=self.token)
-            self.vk = self.vk_session.get_api()
-            self.upload = VkUpload(self.vk_session)
+            self.session = aiovk.TokenSession(access_token=self.token)
+            self.vk = aiovk.API(self.session)
 
-            print('Groups connected')
+            print('VK Publisher initialized')
             return True
         
         except Exception as e:
@@ -28,31 +25,20 @@ class Publisher:
     def get_owner_id(self, group_id: int) -> int:
         return -int(group_id)
 
-    async def uploadPost(self, id: int, group_id: int, message: str):
+    async def upload_post(self, group_id: int, message: str):
         print('try to upload post')
         try:
-            post = self.vk.wall.post(owner_id=self.get_owner_id(group_id), message=message, from_group=1)
+            post = await self.vk.wall.post(owner_id=self.get_owner_id(group_id), message=message, from_group=1)
             return post
             
         except Exception as e:
             print(e)
             return None, e
 
-    async def deletePost(self, id: int, group_id: int, post_id: int):
-        print('try to delete post')
-        try:
-            post = self.vk.wall.delete(owner_id=self.get_owner_id(group_id) , post_id=post_id)
-            print('post uploaded')
-            return post
-        
-        except Exception as e:
-            print(e)
-            return None, e        
-
-    async def editPost(self, id: int, group_id: int, post_id: int, message: str):
+    async def edit_post(self, group_id: int, post_id: int, message: str):
         print('try to edit post')
         try: 
-            post = self.vk.wall.edit(owner_id=self.get_owner_id(group_id), post_id=post_id, message=message)
+            post = await self.vk.wall.edit(owner_id=self.get_owner_id(group_id), post_id=post_id, message=message)
             print('post edited')
             return post
         
@@ -60,10 +46,21 @@ class Publisher:
             print(e)
             return None, e
         
-    async def restorePost(self, group_id: int, post_id: int):
+    async def delete_post(self, group_id: int, post_id: int):
+        print('try to delete post')
+        try:
+            post =  await self.vk.wall.delete(owner_id=self.get_owner_id(group_id) , post_id=post_id)
+            print('post uploaded')
+            return post
+        
+        except Exception as e:
+            print(e)
+            return None, e        
+
+    async def restore_post(self, group_id: int, post_id: int):
         print(f'try to restore post {post_id}')
         try: 
-            post = self.vk.wall.restore(owner_id=self.get_owner_id(group_id), post_id=post_id)
+            post = await self.vk.wall.restore(owner_id=self.get_owner_id(group_id), post_id=post_id)
             print('post restroed')
             return post
         
@@ -71,17 +68,17 @@ class Publisher:
             print(e)
             return None, e
     
-    async def pinPost(self, group_id: int, post_id: int):
+    async def pin_post(self, group_id: int, post_id: int):
         print('try to pin post')
         try:
-            post = self.vk.wall.pin(owner_id=self.get_owner_id(group_id), post_id=post_id)
+            post =  await self.vk.wall.pin(owner_id=self.get_owner_id(group_id), post_id=post_id)
             print('post pinned')
             return post
         except Exception as e:
             print(e)
             return None, e
         
-    async def getPosts(self, group_id: int, count: int):
+    async def get_posts(self, group_id: int, count: int):
         
         # Метод vk.wall.get возвращает:
         # {
@@ -140,18 +137,22 @@ class Publisher:
         # }
         print(f'try to get {count} posts of {group_id}')
         try:
-            posts = self.vk.wall.get(domain=self.get_owner_id(group_id), count=count)
+            posts = await self.vk.wall.get(domain=self.get_owner_id(group_id), count=count)
             print(posts)
         except Exception as e:
             print(e)
             return None, e
     
+    async def close(self):
+        if self.session:
+            await self.session.close()
+            print('VK Publisher session closed')
+
     async def get_user(self):
         print('try to get current user info')
         try:
-            user = self.vk.users.get()
-            print(user)
-            await self.get_groups(user[0]['id'])
+            user = await self.vk.users.get()
+            print(f'user: {user}')
             return user
         except Exception as e:
             print(e)
@@ -160,8 +161,9 @@ class Publisher:
     async def get_groups(self, user_id: int):
         print(f'try to fetch channels of user_id={user_id}')
         try:
-            groups = self.vk.groups.get(user_id=user_id, extended=1)
+            groups = await self.vk.groups.get(user_id=user_id, extended=1)
             print(groups)
+            return groups
         except Exception as e:
             print(e)
             return None, e
