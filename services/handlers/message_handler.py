@@ -36,8 +36,8 @@ class MessageHandler:
         }.get(event_type)
 
     def _requires_vk(self, message: Dict) -> tuple[bool, list]:
-        platform     = message.get("platform_type", [])
-        vk_group_ids = message.get("vk_group_ids", [])
+        platform     = message.get("platform", [])
+        vk_group_ids = message.get("group_ids", [])
 
         if 'vk' not in platform:
             print(f"Platform 'vk' not in platform_type: {platform}")
@@ -50,7 +50,7 @@ class MessageHandler:
         return True, vk_group_ids
 
     async def _get_publisher(self, message: Dict):
-        platform = message.get("platform_type", [])
+        platform = message.get("platform", [])
         token    = message.get("token")
 
         vk_platform = next((p for p in platform if p == 'vk'), None)
@@ -104,7 +104,7 @@ class MessageHandler:
 
         id = message.get('id')
         executor_id = message.get('executorId')
-        post_id = message.get('vk_post_id')
+        post_id = message.get('post_id')
         text = f"{message.get('title')}\n{message.get('content')}"
 
         try:
@@ -131,7 +131,7 @@ class MessageHandler:
 
         id = message.get('id')
         executor_id = message.get('executorId')
-        post_id = message.get('vk_post_id')
+        post_id = message.get('post_id')
 
         try:
             for group_id in vk_group_ids:
@@ -156,7 +156,7 @@ class MessageHandler:
 
         id = message.get('id')
         executor_id = message.get('executorId')
-        post_id = message.get('vk_post_id')
+        post_id = message.get('post_id')
 
         try:
             for group_id in vk_group_ids:
@@ -179,7 +179,7 @@ class MessageHandler:
         if not publisher:
             return
 
-        post_id = message.get('vk_post_id')
+        post_id = message.get('post_id')
 
         try:
             for group_id in vk_group_ids:
