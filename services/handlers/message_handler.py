@@ -50,11 +50,10 @@ class MessageHandler:
         return True, vk_group_ids
 
     async def _get_publisher(self, message: Dict):
-        platform = message.get("platform", [])
+        platform = message.get("platform")
         token    = message.get("token")
 
-        vk_platform = next((p for p in platform if p == 'vk'), None)
-        if not vk_platform or not token:
+        if platform != 'vk' or not token or not platform:
             print("Missing platform or token")
             return None
 
@@ -71,9 +70,10 @@ class MessageHandler:
         if not publisher:
             return
 
-        id = message.get('id')
-        executor_id = message.get('executorId')
-        isPinned = message.get("isPinned")
+        news_id = message.get('news_id')
+        institution_id = message.get('institution_id')
+        is_pinned = message.get("isPinned")
+        
         text = f"{message.get('title')}\n{message.get('content')}"
 
         try:
@@ -81,14 +81,16 @@ class MessageHandler:
                 post = await publisher.upload_post(group_id, text)
                 print(post)
 
-                if isPinned is True:
+                if is_pinned is True:
                     await publisher.pin_post(group_id, post.get('post_id'))
 
                 await self.producer.send('posts.reply', {
-                    'executor_id': executor_id,
-                    'news_id':     id,
-                    'post_id':     post['post_id'],
-                    'status':      'uploaded',
+                    'news_id': news_id,
+                    'institution_id': institution_id,
+                    'group_id': group_id,
+                    'post_id': post['post_id'],
+                    'status': 'UPLOADED',
+                    'platform': 'vk',
                 })
         finally:
             await publisher.close()
@@ -115,7 +117,7 @@ class MessageHandler:
                         'executor_id': executor_id,
                         'news_id':     id,
                         'post_id':     post['post_id'],
-                        'status':      'edited',
+                        'status':      'EDITED',
                     })
         finally:
             await publisher.close()
@@ -165,7 +167,7 @@ class MessageHandler:
                     await self.producer.send('posts.reply', {
                         'executor_id': executor_id,
                         'news_id':     id,
-                        'status':      'restored',
+                        'status':      'RESTORED',
                     })
         finally:
             await publisher.close()
