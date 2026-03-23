@@ -5,7 +5,7 @@ from services.publishers.vk.publish import VkPublisher
 class PublisherFactory:
     @staticmethod
     def create(platform: str, token: str) -> BasePublisher:
-        if platform == 'vk':
+        if platform.lower() == 'vk':
             return VkPublisher(token)
         # elif platform == 'telegram':
         #     return TelegramPublisher(token)

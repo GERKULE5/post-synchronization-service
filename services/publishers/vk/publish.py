@@ -161,7 +161,7 @@ class VkPublisher(BasePublisher):
     async def get_groups(self, user_id: int):
         print(f'try to fetch channels of user_id={user_id}')
         try:
-            groups = await self.vk.groups.get(user_id=user_id, extended=1)
+            groups = await self.vk.groups.get(user_id=user_id, extended=0, filter='admin')
             print(groups)
             return groups
         except Exception as e:
